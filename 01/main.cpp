@@ -8,7 +8,7 @@ using namespace std;
 constexpr char EOT = 4;
 
 enum class Lex{
-    NUMBER=10,
+    NUMBER,
     IDENT,
     PLUS,
     MINUS,
@@ -239,7 +239,7 @@ int main()
     context["myVar"] = 100;
     context["pi"] = 3.14;
     vector<string> exprs = {
-        "2+2", 
+        "2+2+7", 
         "10 * 2 + 7", 
         "((2 + 100 * 7) + 1) / 2",
         "((2 + myVar * 7) + 1) / 2",
