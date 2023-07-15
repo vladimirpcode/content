@@ -208,6 +208,9 @@ void factor(Node *&node){
         }
         lexer->next_lex();
     } 
+    else {
+        expected("Имя, Число или (Выражение)");
+    }
 }
 
 double calculate(Node* node){
