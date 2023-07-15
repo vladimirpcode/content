@@ -713,7 +713,7 @@ void factor(Node *&node){
 
 4)        (77)
 ```
-
+Процедура 'calculate':
 ```c++
 double calculate(Node* node){
     Если левая и правая части узла пустые: 
