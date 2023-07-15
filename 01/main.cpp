@@ -1,49 +1,23 @@
 #include <iostream>
 #include <string>
 #include <map>
-#include <vector>
 
 using namespace std;
 
-constexpr char EOT = 4;
+constexpr char EOT = 3;
 
 enum class Lex{
-    NUMBER,
-    IDENT,
-    PLUS,
-    MINUS,
-    EQUAL,
-    MULTIPLY,
-    DIVIDE,
-    LBRACE,
-    RBRACE,
-    EOT,
-    NONE
-};
-
-class Node{
-public:
-    Node* left;
-    Node* right;
-    Lex operation;
-    double value;
-
-    Node(){
-        left = nullptr;
-        right = nullptr;
-        operation = Lex::NONE;
-        value = 0;
-    }
-
-    ~Node(){
-        if (left != nullptr){
-            delete left;
-        }
-        if (right != nullptr){
-            delete right;
-        }
-    }
-
+    NUMBER,     // Число
+    IDENT,      // Идентификатор
+    PLUS,       // +
+    MINUS,      // -
+    EQUAL,      // =
+    MULTIPLY,   // *
+    DIVIDE,     // /
+    LBRACE,     // (
+    RBRACE,     // )
+    EOT,        // Конец текста
+    NONE        // Отсутствие лексемы
 };
 
 void error(string msg){
@@ -68,56 +42,77 @@ bool is_alpha(char c){
     return (c >= 65 && c <= 90) || (c >= 97 && c <= 122);
 }
 
-class Wrapper{
+class Node{
 public:
-    char ch;
+    Node* left;
+    Node* right;
+    Lex operation;
+    double value;
 
-    Wrapper(string _str){
-        str = _str;
-        pos = 0;
-        get_next();
+    Node(){
+        left = nullptr;
+        right = nullptr;
+        operation = Lex::NONE;
+        value = 0;
     }
 
-    char get_next(){
-        if (pos == str.length()){
-            ch = EOT;
-            return EOT;
+    ~Node(){
+        if (left != nullptr){
+            delete left;
         }
-        ch = str[pos];
+        if (right != nullptr){
+            delete right;
+        }
+    }
+};
+
+class Wrapper{
+public:
+    Wrapper(string _data){
+        data = _data;
+        pos = 0;
+        next_char();
+    }
+
+    void next_char(){   // считать следующий символ
+        if (pos == data.length()){
+            ch = EOT;
+            return;
+        }
+        ch = data[pos];
         pos++;
-        while (is_whitespace(ch) && pos < str.length()){
-            ch = str[pos];
+        while (is_whitespace(ch) && pos < data.length()){
+            ch = data[pos];
             pos++;
         }
         if (is_whitespace(ch)){
             ch = EOT;
-            return EOT;
+            return;
         }
-        return ch;
     }
 
+    char ch;            // текущий символ
+    
 private:
-    string str;
-    int pos;
+    string data;
+    int pos;            // номер следующего символа
 };
 
 class Lexer{
 public:
-    Lex token;
-    int number_value;
-    string name;
     Lexer(string s):wrap(s){
         next_lex();
     }
-    Lex next_lex(){
+    Lex token;
+    int number_value;   // на случай если лексема - число
+    string name;        // на случай если лексема - идентификатор
+    void next_lex(){
         if (is_alpha(wrap.ch)){
             name = ident();
             token = Lex::IDENT;
-            return token;
         } else if(is_number(wrap.ch)){
             number_value = number();
             token = Lex::NUMBER;
-            return token;
         } else {
             switch (wrap.ch){
                 case '+': token = Lex::PLUS; break;
@@ -127,21 +122,20 @@ public:
                 case '(': token = Lex::LBRACE; break;
                 case ')': token = Lex::RBRACE; break;
                 case '=': token = Lex::EQUAL; break;
-                case EOT: token = Lex::EOT; return token;
-                default: cout << wrap.ch; error("неизвестный токен");
+                case EOT: token = Lex::EOT; break;
+                default: error("неизвестный токен");
             }
-            wrap.get_next();
-            return token;
+            wrap.next_char();
         }
     }
 private:
     Wrapper wrap;
-    
+
     string ident(){
         string result = "";
         while (is_alpha(wrap.ch)){
             result = result + wrap.ch;
-            wrap.get_next();
+            wrap.next_char();
         }
         return result;
     }
@@ -149,40 +143,36 @@ private:
     int number(){
         int result = 0;
         while (is_number(wrap.ch)){
+            // 48 - код нуля (0) по таблице ASCII
+            // преобразуем символ в цифру 
             result = result * 10 + (wrap.ch - 48); 
-            wrap.get_next();
+            wrap.next_char();
         }
         return result;
     }
 };
 
-
 Lexer* lexer;
-map<string, double> context;
+map<string, double> variables;
 
-////////////////////////
 void term(Node *&node);
 void factor(Node *&node);
 
-// парсер
-// Выражение = Слагаемое {ЗнакСлож Слагаемое}
-// Слагаемое = Множитель {ЗнакУмнож Множитель}
-// Множитель = Число | Идентификатор | "(" Выражение ")"
-// ЗнакСлож = "+" | "-"
-// ЗнакУмнож = "*" | "/"
+// Выражение = Слагаемое {ОперСлож Слагаемое}
 void expression(Node *&node){
-    term(node);
-    while (lexer->token == Lex::MINUS || lexer->token == Lex::PLUS){
-        Node *tmp = node;
-        node = new Node();
-        node->operation = lexer->token;
-        node->left = tmp;
+    term(node);     //слагаемое
+    while(lexer->token == Lex::MINUS || lexer->token == Lex::PLUS){
+        Node *tmp = node;               // запоминаем старое поддерево
+        node = new Node();              // создаем новую ноду
+        node->operation = lexer->token; // не забываем про операцию
+        node->left = tmp;               // подцепляем старое поддерево слева
         lexer->next_lex();
-        node->right = new Node();
-        term(node->right);
+        node->right = new Node();       // по соглашению создаем объект в памяти заранее
+        term(node->right);              // правую часть дерева отдаем на откуп term()
     }
 }
 
+//Слагаемое = Множитель {ОперУмнож Множитель}
 void term(Node *&node){
     factor(node);
     while (lexer->token == Lex::MULTIPLY || lexer->token == Lex::DIVIDE){
@@ -196,24 +186,29 @@ void term(Node *&node){
     }
 }
 
+//Множитель = Число | Идентификатор | "(" Выражение ")"
 void factor(Node *&node){
-    if (lexer->token == Lex::LBRACE){
+    if (lexer->token == Lex::NUMBER){
+        node->value = lexer->number_value;      // не забываем числовое значение
+        lexer->next_lex();
+    }
+    else if (lexer->token == Lex::IDENT){
+        // C++ способ найти значение в map. 
+        // В других языках по другому.
+        if (variables.find(lexer->name) == variables.end()){
+            error("имя  не существует");
+        }
+        node->value = variables[lexer->name];   // не забываем значение переменной
+        lexer->next_lex();
+    }
+    else if (lexer->token == Lex::LBRACE){
         lexer->next_lex();
         expression(node);
         if (lexer->token != Lex::RBRACE){
             expected(")");
         }
         lexer->next_lex();
-    } else if (lexer->token == Lex::NUMBER){
-        node->value = lexer->number_value;
-        lexer->next_lex();
-    } else if (lexer->token == Lex::IDENT){
-        if (context.find(lexer->name) == context.end()){
-            error("имя  не существует");
-        }
-        node->value = context[lexer->name];
-        lexer->next_lex();
-    }
+    } 
 }
 
 double calculate(Node* node){
@@ -227,36 +222,28 @@ double calculate(Node* node){
         case Lex::MINUS: return left_result - right_result;
         case Lex::DIVIDE: return left_result / right_result;
         case Lex::MULTIPLY: return left_result * right_result;
-        default: cout << "U" << (int)node->operation << "__" << node->value<<"|"; return left_result;
+        default: error("неизвестная операция. Вычисление не удалось");
     }
     return 0;
 }
 
-////////////////////////
-// соглашение: каждая процедура получает инициализированный указатель на ноду
-int main()
-{
-    context["myVar"] = 100;
-    context["pi"] = 3.14;
-    vector<string> exprs = {
-        "2+2+7", 
-        "10 * 2 + 7", 
-        "((2 + 100 * 7) + 1) / 2",
-        "((2 + myVar * 7) + 1) / 2",
-        "pi * 2 * 2",
-        "(2+2)*(3+3)",
-        "2 + 2 + 2",
-        "(1 + 3 + (4 * 5 - (7/2 + (2+5-4))))"
+int main(){
+    string expr;
+    cout << "Введите выражение: ";
+    getline(cin, expr);
 
-    };
-    for (auto& expr:exprs){
-        cout << expr << " = ";
-        lexer = new Lexer(expr);
-        Node* tree = new Node();
-        expression(tree);
-        cout << calculate(tree) << endl;
-        delete tree;
-        delete lexer;
+    variables["myVar"] = 100;
+    variables["pi"] = 3.14;
+    lexer = new Lexer(expr);
+    Node* tree_root = new Node();   // создаем корень дерева
+    expression(tree_root);
+    if (lexer->token != Lex::EOT){
+        expected("EOT");
     }
+    double result = calculate(tree_root);   // вычисляем выражение
+    cout << " = " << result << "\n";
+    cout << "__________OK\n";
+    delete lexer;
+    
     return 0;
 }
