@@ -142,9 +142,8 @@ private:
     int number(){
         int result = 0;
         while (is_number(wrap.ch)){
-            // 48 - код нуля (0) по таблице ASCII
             // преобразуем символ в цифру 
-            result = result * 10 + (wrap.ch - 48); 
+            result = result * 10 + (wrap.ch - '0'); 
             wrap.next_char();
         }
         return result;
