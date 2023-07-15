@@ -424,7 +424,7 @@ void expression(){
 ```c++
 //Слагаемое = Множитель {ОперУмнож Множитель}
 void term(){
-    factor();
+    factor();      // множитель
     while (lexer->token == Lex::MULTIPLY || lexer->token == Lex::DIVIDE){
         lexer->next_lex();
         factor();
