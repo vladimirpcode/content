@@ -87,7 +87,6 @@ public:
         }
         if (is_whitespace(ch)){
             ch = EOT;
-            return;
         }
     }
 
